@@ -858,7 +858,10 @@ Extract asset information from text or image (Mock).
 }
 ```
 
-**Note:** Returns mock data if AI_API_KEY not configured.
+**⚠️ Important Note:** Returns mock data if AI_API_KEY is not configured. In production environments, these endpoints should either:
+- Be properly configured with real AI API credentials, OR
+- Be disabled/removed to prevent confusion about AI capabilities
+- Consider returning 503 Service Unavailable when AI service is not configured
 
 ---
 
@@ -879,7 +882,10 @@ Generate risk summary for assets (Mock).
 }
 ```
 
-**Note:** Returns mock summary if AI_API_KEY not configured.
+**⚠️ Important Note:** Returns mock summary if AI_API_KEY is not configured. In production environments, these endpoints should either:
+- Be properly configured with real AI API credentials, OR
+- Be disabled/removed to prevent confusion about AI capabilities
+- Consider returning 503 Service Unavailable when AI service is not configured
 
 ---
 
