@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STORE_CLERK
+  APPROVER
+  MAINTENANCE
+  INVENTORY
+  AUDITOR
+}
+
+enum AssetStatus {
+  IN_STORE
+  ASSIGNED
+  UNDER_MAINTENANCE
+  DISPOSED
+}
+
+enum AssetEventType {
+  CREATED
+  UPDATED
+  ASSIGN_REQUESTED
+  TRANSFER_REQUESTED
+  DISPOSE_REQUESTED
+  ASSIGNED
+  TRANSFERRED
+  MAINTENANCE_OPENED
+  MAINTENANCE_CLOSED
+  VERIFIED
+  DISPOSED
+  HANDOVER_UPLOADED
+}
+
+enum RequestType {
+  ASSIGN
+  TRANSFER
+  DISPOSE
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MaintenanceStatus {
+  OPEN
+  CLOSED
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime    @default(now())
+  assetEvents  AssetEvent[] @relation("AssetEventActor")
+  requests     Request[]   @relation("RequestRequester")
+  approvals    Request[]   @relation("RequestApprover")
+  handovers    HandoverDocument[] @relation("HandoverUploader")
+  maintenanceOpened MaintenanceTicket[] @relation("MaintenanceOpenedBy")
+  maintenanceClosed MaintenanceTicket[] @relation("MaintenanceClosedBy")
+  inventorySessions InventorySession[] @relation("InventoryStartedBy")
+  inventoryScans InventoryScan[] @relation("InventoryScannedBy")
+  auditLogs    AuditLog[]  @relation("AuditActor")
+}
+
+model Asset {
+  id           String      @id @default(cuid())
+  assetTag     String      @unique
+  category     String
+  make         String?
+  model        String?
+  serialNumber String?
+  cost         Decimal?
+  vendor       String?
+  purchaseDate DateTime?
+  location     String
+  status       AssetStatus @default(IN_STORE)
+  condition    String?
+  custodian    String?
+  createdAt    DateTime    @default(now())
+  events       AssetEvent[]
+  requests     Request[]
+  handovers    HandoverDocument[]
+  maintenanceTickets MaintenanceTicket[]
+  inventoryScans InventoryScan[]
+
+  @@index([serialNumber])
+  @@index([assetTag])
+  @@index([status])
+  @@index([location])
+}
+
+model AssetEvent {
+  id          String        @id @default(cuid())
+  assetId     String
+  type        AssetEventType
+  actorUserId String
+  metaJson    Json?
+  createdAt   DateTime      @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id])
+  actor User @relation("AssetEventActor", fields: [actorUserId], references: [id])
+}
+
+model Request {
+  id            String        @id @default(cuid())
+  assetId       String
+  type          RequestType
+  fromCustodian String?
+  toCustodian   String
+  status        RequestStatus @default(PENDING)
+  requestedBy   String
+  approvedBy    String?
+  createdAt     DateTime      @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id])
+  requester User @relation("RequestRequester", fields: [requestedBy], references: [id])
+  approver User? @relation("RequestApprover", fields: [approvedBy], references: [id])
+  handovers HandoverDocument[]
+}
+
+model HandoverDocument {
+  id         String   @id @default(cuid())
+  assetId    String
+  requestId  String?
+  filePath   String
+  sha256     String
+  uploadedBy String
+  uploadedAt DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id])
+  request Request? @relation(fields: [requestId], references: [id])
+  uploader User @relation("HandoverUploader", fields: [uploadedBy], references: [id])
+}
+
+model MaintenanceTicket {
+  id        String            @id @default(cuid())
+  assetId   String
+  status    MaintenanceStatus @default(OPEN)
+  issue     String
+  vendor    String?
+  cost      Decimal?
+  notes     String?
+  recommendDisposal Boolean   @default(false)
+  openedBy  String
+  closedBy  String?
+  openedAt  DateTime          @default(now())
+  closedAt  DateTime?
+
+  asset Asset @relation(fields: [assetId], references: [id])
+  opener User @relation("MaintenanceOpenedBy", fields: [openedBy], references: [id])
+  closer User? @relation("MaintenanceClosedBy", fields: [closedBy], references: [id])
+}
+
+model InventorySession {
+  id        String   @id @default(cuid())
+  location  String
+  startedBy String
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+
+  starter User @relation("InventoryStartedBy", fields: [startedBy], references: [id])
+  scans InventoryScan[]
+}
+
+model InventoryScan {
+  id        String   @id @default(cuid())
+  sessionId String
+  assetId   String
+  scannedBy String
+  scannedAt DateTime @default(now())
+
+  session InventorySession @relation(fields: [sessionId], references: [id])
+  asset   Asset            @relation(fields: [assetId], references: [id])
+  scanner User             @relation("InventoryScannedBy", fields: [scannedBy], references: [id])
+
+  @@index([sessionId, assetId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String
+  action      String
+  entityType  String
+  entityId    String?
+  metaJson    Json?
+  createdAt   DateTime @default(now())
+
+  actor User @relation("AuditActor", fields: [actorUserId], references: [id])
+}

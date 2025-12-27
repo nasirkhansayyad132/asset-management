@@ -1,0 +1,25 @@
+# Dependencies
+**/node_modules/
+
+# Build output
+**/dist/
+**/build/
+**/.vite/
+
+# Environment files
+**/.env
+**/.env.*
+!.env.example
+
+# Logs
+**/*.log
+
+# Runtime storage
+storage/
+backend/storage/
+
+# OS files
+.DS_Store
+
+# Editor settings
+.vscode/
